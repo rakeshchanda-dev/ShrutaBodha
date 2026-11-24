@@ -63,8 +63,10 @@ Format: date, decision, why, alternatives, revisit when.
 - **Rule:** Avoid running IntelliJ and VS Code with the Java extension at the same time on the 8 GB laptop.
 - **Revisit when:** the laptop struggles for memory.
 
-## D13. Postgres on host port 5433, app user `shrutauser` (2026-11-22)
-- **Decision:** Publish the Docker Postgres on host port 5433 (container stays 5432). Database `shrutadb`, user `shrutauser`.
+## D13. Postgres on host port 5434, app user `shrutauser` (2026-11-22, port changed 2026-11-24)
+- **Decision:** Publish the Docker Postgres on host port 5434 (container stays 5432). Database `shrutadb`, user `shrutauser`.
+- **Host:** the app connects to `127.0.0.1` (`POSTGRES_HOST=127.0.0.1`). Explicit IPv4 avoids any `localhost` → IPv6 `::1` ambiguity on Windows, where `wslrelay.exe` also listens on `[::1]:<port>` for Docker's ports.
+- **History (2026-11-24):** First app run failed with "password authentication failed". We first suspected `wslrelay.exe` on `[::1]` (seen in `netstat`), moved 5433 → 5434 and switched to `127.0.0.1`, but it still failed. The Postgres container log proved the login *was* reaching our container, so Spring was sending the wrong password. **Real root cause:** IntelliJ's temporary run config used the repo root as working directory, so `optional:file:../.env` pointed to `C:\projects\.env` (missing), was silently skipped, and the unresolved `${POSTGRES_PASSWORD}` was sent literally. **Fix:** `spring.config.import: optional:file:.env[.properties],optional:file:../.env[.properties]` so `.env` is found from either folder. Port 5434 and `127.0.0.1` kept (harmless, explicit).
 - **Why:** Avoids clashing with a natively installed Postgres on 5432. A project-specific user name makes it obvious which server you're connected to.
 - **Note:** In the official Postgres image, `POSTGRES_USER` is created as a superuser, so `shrutauser` can run `CREATE EXTENSION vector`. Fine for local dev.
 - **Revisit when:** deploying. Then split into a migration/owner user (used by Flyway) and a least-privilege runtime user for the app.

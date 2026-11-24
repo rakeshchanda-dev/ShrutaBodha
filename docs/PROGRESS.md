@@ -1,6 +1,6 @@
 # ShrutaBodha: Progress
 
-Last updated: 2026-11-23
+Last updated: 2026-11-24
 
 ## Current phase
 Phase 0 → Phase 1 foundation: Postgres + pgvector in Docker, app connected
@@ -23,16 +23,16 @@ Phase 0 → Phase 1 foundation: Postgres + pgvector in Docker, app connected
 - [x] Context files mirrored into repo `docs/` and INTERVIEW_PREP.md added to the Claude Project; both kept in sync (PROJECT_NOTES 8b)
 
 ## To do now
-- [ ] Build Project in IntelliJ (☰ → Build → Build Project) succeeds
+- [x] Maven project loaded in IntelliJ (backend/pom.xml → Add as Maven Project); run config working dir = backend
 - [x] Root `.gitignore` (`.env`, `.idea/`, `*.iml`)
 - [x] `docker-compose.yml` (repo root) with Postgres + pgvector (`pgvector/pgvector:pg17`), named volume, healthcheck
-- [x] `.env` (git-ignored, POSTGRES_PORT=5433, user `shrutauser`) and `.env.example` (committed, placeholder password)
+- [x] `.env` (git-ignored, POSTGRES_PORT=5434, user `shrutauser`) and `.env.example` (committed, placeholder password)
 - [x] `application.properties` replaced with `application.yml` reading DB settings from env vars, `ddl-auto: validate`
 - [x] First Flyway migration `V1__enable_pgvector.sql`
-- [ ] IntelliJ run configuration: working directory = `C:\projects\ShrutaBodha\backend`
 - [x] `docker compose up -d` works: `shrutabodha-postgres` healthy on 5433 (2026-11-23)
-- [ ] **Next session starts here:** open Docker Desktop → `docker compose up -d` → run `BackendApplication` → confirm Flyway applied V1 and `vector` extension exists (`\dx`)
-- [ ] First commit and push (including `docs/`)
+- [x] First app run failed with password auth error. Suspected `wslrelay.exe` (red herring); real cause: `.env` not loaded because IntelliJ's working dir was the repo root. Fixed by importing both `.env` and `../.env` (D13)
+- [ ] Run `BackendApplication`, confirm Flyway applied V1 and `vector` extension exists (`\dx`)
+- [x] First commit `cfafdc1` pushed to GitHub (2026-11-23)
 
 ## Next
 - [ ] Phase 1 lesson: Spring Boot skeleton and project structure
@@ -51,4 +51,6 @@ Phase 0 → Phase 1 foundation: Postgres + pgvector in Docker, app connected
 | 2026-11-21 | Phase 0 setup | JDK 21 installed and active. Prefers Command Prompt (cmd) over PowerShell: give cmd commands. Switched to IntelliJ for Java (D12). |
 | 2026-11-22 | Phase 0 setup | Docker memory capped, Docker Kubernetes disabled and leftover images removed (lesson: images can't be deleted while containers, even hidden or stopped ones, reference them). Repo cloned, Spring Boot skeleton opened in IntelliJ. |
 | 2026-11-22/23 | Flyway and config concepts | Covered Flyway, DDL vs DML, ddl-auto, Compose `$$` escaping, superuser vs app user. Postgres on port 5433 (D13), migration editing policy (D14), interview prep file (D15). |
-| 2026-11-23 | Postgres up | Config files reviewed (user `shrutauser`). Postgres + pgvector container healthy on 5433. First commit before running the app; app run + Flyway check pending. Lesson: Docker CLI is a client, needs Docker Desktop's engine running. |
+| 2026-11-23 | Postgres up | Config files reviewed (user `shrutauser`). Postgres + pgvector container healthy on 5433. First commit `cfafdc1` pushed; app run + Flyway check pending. Lessons: Docker CLI is a client and needs Docker Desktop's engine running; Git LF/CRLF warnings; `!` in double quotes in Git Bash. |
+| 2026-11-24 | New chat | Long setup chat closed. Next chat: run the app + Phase 1 lesson. Uncommitted: small INTERVIEW_PREP.md addition (commit with next change). |
+| 2026-11-24 | Run the app | IntelliJ hadn't imported Maven (fixed: Add as Maven Project). Password auth failure traced with netstat/tasklist to `wslrelay.exe` holding `[::1]:5433`. Port 5434 / `127.0.0.1` didn't help. Container log showed the login reached our Postgres, so the password Spring sent was wrong: `.env` was silently skipped (working dir = repo root, `optional:` import). Fixed by importing `.env` from both folders. Lesson: test the hypothesis with evidence (server logs) before changing things. |

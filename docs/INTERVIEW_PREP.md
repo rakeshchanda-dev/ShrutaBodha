@@ -34,6 +34,10 @@ A: Lightweight threads managed by the JVM instead of the OS. You can have millio
 A: Externalized configuration. Values come from `application.yml`, environment variables, command-line args and imported files, with a defined precedence order. Code reads them through placeholders like `${POSTGRES_PORT:5432}`, meaning "use the environment variable, or this default".
 *In this project:* `application.yml` imports `../.env` with `spring.config.import: optional:file:../.env[.properties]`, so Docker Compose and Spring Boot share one settings file.
 
+**Q: What does `optional:` mean in `spring.config.import`, and what's the risk?**
+A: `optional:file:../.env[.properties]` imports the file if it exists and silently skips it if not, so the app still starts on machines without it. The risk: a wrong relative path fails silently. Relative paths resolve against the **working directory**, which differs between IntelliJ, `mvnw spring-boot:run` and a packaged jar. And Spring Boot's binder leaves unresolvable placeholders as literal text, so a missing `${POSTGRES_PASSWORD}` is sent as the string `${POSTGRES_PASSWORD}` instead of failing fast.
+*In this project:* IntelliJ ran from the repo root, so `../.env` missed and Postgres received the literal placeholder as the password. Fix: import both `.env` and `../.env`. A stricter alternative is to drop `optional:` so a missing file fails at startup.
+
 **Q: What does `spring.jpa.open-in-view: false` do and why turn it off?**
 A: Open Session in View keeps the Hibernate session (and a DB connection) open for the whole web request, including view rendering, so lazy loading "just works" in controllers. It hides N+1 query problems and holds connections longer than needed. Turning it off forces data loading to happen in the service layer, inside transactions.
 
@@ -115,8 +119,12 @@ A: Not in production. Use an owner/migration user for Flyway (can create and alt
 **Q: What is a Postgres extension, and why pgvector?**
 A: Extensions add features to Postgres (`CREATE EXTENSION ...`). pgvector adds a `vector` column type and similarity operators (`<=>` for cosine distance), so embeddings and relational data live in one database instead of adding a separate vector DB.
 
+**Q: The password is correct but Postgres says "password authentication failed". How do you debug it?**
+A: First find out whether the attempt reaches the server you expect: check the **server's own log**. If the failure appears there, you're at the right server and the client is sending a different password than you think (config not loaded, env var override, stale password in an existing data volume, since `POSTGRES_PASSWORD` only applies to an empty volume). If it doesn't appear, you're reaching a different server: check who listens on the port (`netstat -ano | findstr :5434` + `tasklist` on Windows, `lsof -i :5434` on Linux/macOS). `localhost` can resolve to IPv6 `::1` or IPv4 `127.0.0.1`, and different processes can listen on each.
+*In this project:* `netstat` showed `wslrelay.exe` on `[::1]`, so we suspected the wrong server and changed the port and host. It still failed. The Postgres container log showed the login *was* arriving, so the client was wrong: Spring had silently skipped `.env` (see the Spring Boot question on `optional:` imports). Lesson: let evidence (server logs) pick between hypotheses before changing things.
+
 **Q: How do you avoid clashing with another Postgres on the same machine?**
-A: Publish the container on a different host port, e.g. `5433:5432`. Inside the container Postgres still listens on 5432.
+A: Publish the container on a different host port, e.g. `5434:5432`. Inside the container Postgres still listens on 5432.
 
 ---
 
@@ -128,6 +136,10 @@ A: An image is a read-only template (like a class). A container is a running or 
 **Q: Why can't you delete an image that's "in use"?**
 A: Every container, even a stopped one, keeps a reference to its image, like a foreign key. Docker won't delete the image while anything references it. Remove the containers first (`docker ps -a` shows all of them, including stopped ones), or force it with `docker rmi -f`.
 *In this project:* Docker Desktop's hidden Kubernetes containers held the `registry.k8s.io/*` images. Disabling Kubernetes and force-removing fixed it.
+
+**Q: What is the Docker architecture? What does "failed to connect to the docker API" mean?**
+A: Docker is client-server. The `docker` CLI is only a client: it sends API requests to the Docker daemon (engine), which actually builds images and runs containers. On Windows the daemon lives inside Docker Desktop's WSL2 VM and the CLI reaches it through a named pipe (`npipe://./pipe/dockerDesktopLinuxEngine`). "Failed to connect" / "cannot find the file specified" means the client can't reach the daemon, almost always because Docker Desktop isn't running yet. Start it, wait for "Engine running", retry.
+*In this project:* hit this on the first `docker compose up` because Docker Desktop wasn't running.
 
 **Q: Why use a named volume for a database container?**
 A: Containers are disposable, data shouldn't be. A volume stores data outside the container's lifecycle, so recreating or upgrading the container keeps the data.
@@ -154,6 +166,10 @@ A: Docker runs inside a WSL2 VM that can take up to half the RAM by default and 
 **Q: How do you keep secrets out of Git but still document required settings?**
 A: Put real values in `.env`, listed in `.gitignore`. Commit a `.env.example` with the same keys and placeholder values, so a fresh clone shows exactly what to configure.
 
+**Q: What does "LF will be replaced by CRLF" mean in Git on Windows?**
+A: Windows ends lines with CRLF (`\r\n`), Linux/macOS with LF (`\n`). With `core.autocrlf=true` (the Git for Windows default), Git stores LF in the repo and converts to CRLF in your working folder. The warning just reports that conversion and is harmless. A `.gitattributes` file pins endings per file type, e.g. shell scripts like `mvnw` must stay LF or they break on Linux and in Docker.
+*In this project:* Spring Initializr's `backend/.gitattributes` keeps `mvnw` as LF, which is why it was the one file without a warning on the first commit.
+
 ---
 
 ## 8. Troubleshooting habits
@@ -165,3 +181,4 @@ A:
 3. Don't trust the GUI alone. Use the CLI for the full picture (`docker ps -a`, logs).
 4. Remove the cause, then retry.
 5. Use force or reset only once you know what you're throwing away.
+6. Read the **last** `Caused by:` in a Java stack trace first: it's the root cause. Everything above it shows how that failure spread.

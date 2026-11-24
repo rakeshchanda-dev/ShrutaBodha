@@ -1,6 +1,6 @@
 # ShrutaBodha: Project Notes
 
-Last updated: 2026-11-23
+Last updated: 2026-11-24
 
 ## 1. What this is
 A learning project built from scratch. A video-to-knowledge app: upload a video, transcribe it, chunk and embed the transcript, then ask questions about it through a RAG chatbot.
@@ -29,7 +29,7 @@ The detailed original idea, data model and API ideas live in `ShrutaBodha_From_S
 - **Local first.** Start on the laptop. Move a piece to GitHub Codespaces only if the laptop struggles.
 - Codespaces (free personal account): 120 core hours a month, about 60 hours on a 2-core machine. It is a fallback, so stop the codespace when done.
 - Docker Desktop memory capped through `C:\Users\<name>\.wslconfig` (start with memory=2GB, processors=2, swap=2GB). Docker Desktop's built-in Kubernetes is disabled.
-- Postgres runs in Docker on host port 5433 (D13), nothing installed natively. RabbitMQ is added later.
+- Postgres runs in Docker on host port 5434, reached at `127.0.0.1` not `localhost` (D13), nothing installed natively. RabbitMQ is added later.
 - Never run the whole stack and a Whisper job together.
 - Avoid running IntelliJ and VS Code's Java extension at the same time (RAM).
 - Everything is driven by Git, `.env` files and `docker-compose.yml`, so any piece can move to Codespaces without code changes.
@@ -42,6 +42,9 @@ The detailed original idea, data model and API ideas live in `ShrutaBodha_From_S
 - Spring Boot 4.2.0 (from start.spring.io)
 - Repo location: `C:\projects\ShrutaBodha` (backend in `C:\projects\ShrutaBodha\backend`). Claude can access this folder through the desktop app when it is connected to the chat.
 - Verify (cmd): `java -version`, `git --version`, `docker --version`, `mvnw -version`
+
+## 4b. Artifacts (claude.ai, under Artifacts in the sidebar, not inside the Project)
+- Whiteboard: [ShrutaBodha: why .env wasn't loaded](https://claude.ai/artifact/3UqVVw3bQyW3giJSMrauXK): before/after flow of the 2026-11-24 `.env` / password bug (D13)
 
 ## 5. Architecture (target)
 - **Spring Boot backend**, modular monolith first: upload, validation, metadata, status tracking, chat orchestration
